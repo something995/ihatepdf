@@ -5,8 +5,6 @@ WORKDIR /app
 # Install necessary system libraries for document processing
 RUN apt-get update && apt-get install -y \
     poppler-utils \
-    libgl1-mesa-glx \
-    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install

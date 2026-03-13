@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      # Next.js will use this container URL in production. 
+      # (Note: In your page.tsx files, you'll need to change `const API_BASE = 'http://localhost:8000'` 
+      # to use `process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'`)
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Bind mount uploads and outputs so they persist or share with worker
+      - ./backend/src/uploads:/app/src/uploads
+      - ./backend/src/outputs:/app/src/outputs
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+
+  celery_worker:
+    build:
+      context: ./backend
+    # Explicitly run the worker process using celery
+    command: celery -A src.tasks.celery_app.celery_app worker --loglevel=info
+    volumes:
+      # Must share the same mounted volumes as the backend so it can physically read/write the PDFs!
+      - ./backend/src/uploads:/app/src/uploads
+      - ./backend/src/outputs:/app/src/outputs
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+      - backend
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
